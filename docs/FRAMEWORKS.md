@@ -41,7 +41,7 @@ A C++23 2D physics engine, server-authoritative, that streams simulation state o
 ## Source Control & CI/CD
 - **Public Git repo (GitHub)** — portfolio-facing, shown to potential employers. GitHub is the single source of truth (no Gitea mirror).
 - **GitHub Actions** pipeline (`.github/workflows/ci.yml`): configure → build → clang-format check → clang-tidy → unit tests → sanitizer builds. The whole pipeline runs *inside* the project image so CI tests the exact artifact it ships.
-- **Container registry: GHCR.** On `main`, CI builds the image multi-arch and pushes it to `ghcr.io/jsam0418/snowglobe:<git-sha>` (immutable SHA tags) using the built-in `GITHUB_TOKEN`.
+- **Container registry: GHCR.** On `master`, CI builds the image multi-arch and pushes it to `ghcr.io/jsam0418/snowglobe:<git-sha>` (immutable SHA tags) using the built-in `GITHUB_TOKEN`.
 - **Flux** deploys to Kubernetes from the GitHub repo (GitOps). Manifests live in `deploy/` (a Kustomize overlay); `clusters/production/` holds the Flux `GitRepository` + `Kustomization`. After pushing the image, CI commits the new tag into `deploy/kustomization.yaml` ("Strategy A"); Flux reconciles it and the cluster pulls from GHCR.
 
 ## Containerization

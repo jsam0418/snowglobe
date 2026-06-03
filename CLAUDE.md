@@ -114,12 +114,12 @@ clang-tidy and clangd are fed by the exported `compile_commands.json`
   clang-tidy (`--warnings-as-errors="*"`) → release tests → ASan/UBSan → TSan.
   Testing the artifact we ship is the point; don't move stages onto the bare
   runner. GHA layer caching keeps the dependency layers warm.
-- **Publish** (on `main` only): the image is built multi-arch
+- **Publish** (on `master` only): the image is built multi-arch
   (`linux/amd64,linux/arm64`) and pushed to **GHCR** at
   `ghcr.io/<owner>/snowglobe:<git-sha>` via the built-in `GITHUB_TOKEN`. Tags are
   immutable SHAs — never `:latest`.
 - **Deploy is GitOps via Flux.** Manifests live in `deploy/` (a Kustomize
-  overlay). On `main`, CI rewrites the image name+tag in
+  overlay). On `master`, CI rewrites the image name+tag in
   `deploy/kustomization.yaml` and commits it back with `[skip ci]` (this is
   "Strategy A" — CI commits the tag). Flux (`clusters/production/snowglobe.yaml`:
   a `GitRepository` + `Kustomization`) reconciles `deploy/` and the cluster pulls
