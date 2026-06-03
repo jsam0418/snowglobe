@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: snowglobe
+  namespace: snowglobe
+  labels:
+    app: snowglobe
+spec:
+  # Server-authoritative: the simulation holds the whole world in memory, so v1
+  # runs a SINGLE replica. Scaling out requires sharding worlds across pods
+  # first — do not bump this blindly.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: snowglobe
+  template:
+    metadata:
+      labels:
+        app: snowglobe
+    spec:
+      containers:
+        - name: snowglobe
+          # Image name + tag are set by CI (Strategy A) via deploy/kustomization.yaml.
+          image: ghcr.io/jsam0418/snowglobe:latest
+          ports:
+            - name: ws
+              containerPort: 9001
+          env:
+            - name: SNOWGLOBE_PORT
+              value: "9001"
+          readinessProbe:
+            tcpSocket:
+              port: ws
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: ws
+            initialDelaySeconds: 5
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "250m"
+              memory: "128Mi"
+            limits:
+              cpu: "1"
+              memory: "512Mi"

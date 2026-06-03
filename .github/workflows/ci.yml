@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # tag-bump commit on main (Strategy A)
+  packages: write # push the image to GHCR
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve image name (lowercased for GHCR)
+        id: img
+        run: echo "image=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v3 # arm64 emulation for the multi-arch publish
+      - uses: docker/setup-buildx-action@v3
+
+      # Build the image once and load it locally so every pipeline stage runs
+      # inside the exact artifact we publish (zero toolchain drift). GHA layer
+      # caching keeps the heavy dependency layers warm across runs.
+      - name: Build image (amd64, for testing)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: snowglobe:ci
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # configure → build is exercised by the image build itself (it runs the
+      # `release` preset and compiles the server). The remaining spec stages:
+
+      - name: clang-format check
+        run: |
+          docker run --rm snowglobe:ci bash -lc \
+            'clang-format --dry-run --Werror $(find src tests benchmarks -type f \( -name "*.cpp" -o -name "*.hpp" \))'
+
+      - name: clang-tidy
+        run: |
+          docker run --rm snowglobe:ci bash -lc \
+            'clang-tidy --warnings-as-errors="*" -p build/release $(find src tests benchmarks -name "*.cpp")'
+
+      - name: Unit tests + ASan/UBSan
+        run: |
+          docker run --rm snowglobe:ci bash -lc \
+            'cmake --preset debug-asan && cmake --build build/debug-asan && ctest --preset debug-asan'
+
+      - name: Unit tests + ThreadSanitizer (SPSC queue)
+        run: |
+          docker run --rm snowglobe:ci bash -lc \
+            'cmake --preset debug-tsan && cmake --build build/debug-tsan && ctest --preset debug-tsan'
+
+      # ---- publish (main only): build multi-arch and push to GHCR ----
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push image (amd64 + arm64)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.img.outputs.image }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- Strategy A: commit the new image tag back into the manifests ----
+      - name: Bump deploy image tag
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ${{ steps.img.outputs.image }}
+          SHA: ${{ github.sha }}
+        run: |
+          yq -i '.images[0].name = strenv(IMAGE) | .images[0].newTag = strenv(SHA)' deploy/kustomization.yaml
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add deploy/kustomization.yaml
+          git commit -m "deploy: snowglobe ${SHA} [skip ci]" || { echo "no change"; exit 0; }
+          git push

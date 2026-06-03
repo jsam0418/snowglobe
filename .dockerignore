@@ -1,0 +1,9 @@
+.git
+build/
+**/build/
+**/vcpkg_installed/
+.cache/
+compile_commands.json
+*.o
+*.a
+*.so

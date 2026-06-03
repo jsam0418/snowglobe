@@ -1,0 +1,17 @@
+# Build output (one dir per CMake preset: build/release, build/debug-asan, ...)
+/build/
+**/build/
+
+# vcpkg manifest-mode install tree (deps are restored from the image cache)
+**/vcpkg_installed/
+vcpkg_installed/
+
+# Tooling caches / generated
+.cache/
+compile_commands.json
+
+# Editor / OS cruft
+.vscode/
+.idea/
+*.swp
+.DS_Store
