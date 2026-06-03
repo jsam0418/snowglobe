@@ -1,16 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 resources:
   - namespace.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
-
 # CI (Strategy A) rewrites name + newTag on every successful build of `main`,
 # pinning the deployment to an immutable commit SHA. `newTag: bootstrap` is a
 # placeholder — the first main-branch CI run replaces it; Flux can only pull a
 # real image after that run completes.
 images:
   - name: ghcr.io/jsam0418/snowglobe
-    newTag: bootstrap
+    newTag: 45dfea49e21a81bcbe95c1228ef2b82b7db28ac0
