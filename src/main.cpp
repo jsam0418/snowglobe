@@ -1,9 +1,9 @@
 // Snowglobe WebSocket server entry point.
 //
-// v1 scaffold: stands up the uWebSockets app/event loop on the I/O thread and
-// echoes client messages. The simulation thread, the SpscQueue hand-off
-// (snowglobe/core/spsc_queue.hpp), and state broadcasting are wired in as the
-// engine lands — see CLAUDE.md for the intended threading model.
+// v1 scaffold: stands up the uWebSockets app/event loop and echoes client
+// messages, just enough to exercise the uWebSockets link and give the image a
+// runnable server. The simulation and world-state broadcasting are still to be
+// designed.
 
 #include <charconv>
 #include <cstdint>

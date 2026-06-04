@@ -2,7 +2,7 @@ find_package(GTest CONFIG REQUIRED)
 include(GoogleTest)
 
 add_executable(snowglobe_tests
-    spsc_queue_test.cpp)
+    smoke_test.cpp)
 
 target_link_libraries(snowglobe_tests PRIVATE
     snowglobe_core

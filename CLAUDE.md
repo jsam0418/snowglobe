@@ -44,9 +44,10 @@ into `build/<preset>/`. There are three:
 
 - `release` — optimized.
 - `debug-asan` — Debug + AddressSanitizer + UndefinedBehaviorSanitizer.
-- `debug-tsan` — Debug + ThreadSanitizer. **Required** validation for the
-  lock-free SPSC queue (`src/snowglobe/core/spsc_queue.hpp`); run it after
-  touching anything in the I/O-thread ↔ sim-thread hand-off.
+- `debug-tsan` — Debug + ThreadSanitizer. **Required** by the spec to validate
+  the lock-free SPSC I/O-thread ↔ sim-thread hand-off (`FRAMEWORKS.md`); run it
+  on any shared-state code that lands there. (That hand-off isn't built yet —
+  for now this preset just runs the smoke tests.)
 
 ```bash
 # Configure + build (swap the preset name as needed)
@@ -55,10 +56,10 @@ cmake --build build/release
 
 # Run the unit tests (CTest)
 ctest --preset debug-asan
-ctest --preset debug-tsan          # the one that matters for the SPSC queue
+ctest --preset debug-tsan          # ThreadSanitizer build
 
 # Run a single test by name (GoogleTest filter)
-./build/debug-asan/tests/snowglobe_tests --gtest_filter='SpscQueue.*'
+./build/debug-asan/tests/snowglobe_tests --gtest_filter='Smoke.*'
 
 # Microbenchmarks (build with the `release` preset, then run the binary)
 ./build/release/benchmarks/snowglobe_benchmarks
@@ -81,16 +82,15 @@ clang-tidy and clangd are fed by the exported `compile_commands.json`
 
 ## Architecture and conventions that span files
 
-- **Threading model.** A uWebSockets event loop owns the network I/O thread
-  (`src/main.cpp`). The simulation runs on a separate thread. They communicate
-  through a single **wait-free SPSC ring buffer** (`spsc_queue.hpp`) — one
-  producer, one consumer, acquire/release ordering. This is the project's most
-  delicate code; it is why `debug-tsan` exists and is non-negotiable.
-- **Data layout is Structure-of-Arrays, not Array-of-Structs.** Body state lives
-  in parallel arrays (`src/snowglobe/ecs/soa_bodies.hpp`) so the hot integration
-  loop stays cache-dense and vectorizable. The `soa_vs_aos` benchmark guards this
-  decision — re-run it before changing storage layout, and don't reintroduce
-  AoS bodies without a benchmark to justify it.
+- **Intended runtime shape (not yet built — to be designed).** The spec and the
+  project brief call for: a uWebSockets event loop on the I/O thread handing work
+  to a separate simulation thread through a **wait-free SPSC queue** (that
+  hand-off is why `debug-tsan` is required), and world state held in an **Entity
+  Component System with structure-of-arrays layout** (not array-of-structs) for
+  cache-dense, vectorizable hot loops — `snowglobe_benchmarks` is where SoA-vs-AoS
+  measurements belong. None of this is implemented: `src/`, `tests/`, and
+  `benchmarks/` currently hold only toolchain smoke stubs (`src/main.cpp` is a
+  bare echo server). The engine internals are an open design task.
 - **`-Werror` is scoped to our targets only.** Project warning flags, `-Werror`,
   and sanitizers live on the `snowglobe_project_options` INTERFACE library and
   are attached only via `target_link_libraries(... PRIVATE ...)` on our own
