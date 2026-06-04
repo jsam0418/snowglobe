@@ -11,4 +11,4 @@ resources:
 # real image after that run completes.
 images:
   - name: ghcr.io/jsam0418/snowglobe
-    newTag: 45dfea49e21a81bcbe95c1228ef2b82b7db28ac0
+    newTag: 7753842c4ad45bdae79c236697554c8d095ce2e7
